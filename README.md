@@ -1,5 +1,4 @@
 # SISOP-4-2026-IT-078
-# SISOP-4-2026-IT-078
 
 **Deskripsi Soal**
 
