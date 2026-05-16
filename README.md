@@ -181,3 +181,32 @@ Merupakan fungsi utama program
 ` fuse_argv[0] = argv[0];` menyimpan nama program
 ` fuse_argv[1] = argv[2]; ` menyimpan mount point (mnt)
 `return fuse_main(2, fuse_argv, &x_oper, NULL);` Menjalankan filesystem fuse operasi yang telah dibuat sebelumnya
+
+
+## REVISI PENAMBAHAN SOAL 1
+
+terdapat revisi pada soal 1 yaitu penambahan file virtual yang bernama `tujuan.txt` yang hanya muncul pada mount directory (mnt)  dan tidak terlihat secara fisik di dalam amba_file
+File virtual ini ditambahkan melalui callback:
+- x_getattr
+- x_readdir
+- x_open
+- x_read
+ output yang ditampilkan
+
+
+` ls mnt `
+<img width="685" height="50" alt="Tangkapan Layar 2026-05-17 pukul 02 14 57" src="https://github.com/user-attachments/assets/97526891-2610-47b5-9636-927453b17b12" />
+
+`ls amba_files`
+
+<img width="500" height="53" alt="Tangkapan Layar 2026-05-17 pukul 02 15 25" src="https://github.com/user-attachments/assets/d774efbf-ef65-485e-a331-3badb488e03a" />
+
+- `cat mnt/tujuan.txt`
+- menampilkan salah satu isi mnt 1.txt`cat mnt/1.txt`
+- `stat mnt/tujuan.txt`
+- `wc -c mnt/tujuan.txt`
+
+<img width="723" height="251" alt="Tangkapan Layar 2026-05-17 pukul 02 15 53" src="https://github.com/user-attachments/assets/814d79fe-17f3-4f01-8c9a-dcc2f4764d2a" />
+
+Jika di tree
+<img width="700" height="316" alt="Tangkapan Layar 2026-05-17 pukul 02 20 17" src="https://github.com/user-attachments/assets/04f6c364-55a4-4913-9196-985f501baabd" />
