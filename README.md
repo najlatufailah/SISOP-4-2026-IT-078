@@ -211,3 +211,130 @@ File virtual ini ditambahkan melalui callback:
 Jika di tree
 
 <img width="700" height="316" alt="Tangkapan Layar 2026-05-17 pukul 02 20 17" src="https://github.com/user-attachments/assets/04f6c364-55a4-4913-9196-985f501baabd" />
+
+
+#  PENAMBAHAN SOAL 2
+
+Pada soal ini pembuatan sistem menajemn databas, yang sistem harus memiliki jaringan TCP Socket (Port 9000), mendukung operasi dasar DDL (CREATE DATABASE, CREATE TABLE) dan DML (INSERT INTO, SELECT * FROM), serta mengamankan seluruh berkas media penyimpanan menggunakan algoritma kriptografi bitwise XOR dengan kunci 0x76.
+
+- Dockerfile: Mengisolasi environment Ubuntu, menginstal biner compiler gcc, menyalin berkas kode, mengompilasi program secara otomatis, dan mengekspos Port internal 9000.
+
+- client.c: Menggunakan paradigma short-lived TCP connection (soket dibuka-tutup setiap kueri terkirim). Ini menjamin tidak adanya deadlock stream buffer saat menerima input interaktif dari user di prompt db > .
+
+- server.c: Berperan sebagai jantung pangkalan data yang melakukan parsing perintah string, eksekusi pembuatan direktori fisik melalui fungsi low-level C (mkdir dan fopen), serta melakukan transformasi bitwise XOR 0x76 untuk mengamankan data tabel secara instan.
+
+- Fungsi Kriptografi Simetris XOR 0x76 (server.c):
+```c
+void xor_cipher(const char *in, char *out, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        out[i] = in[i] ^ 0x76; // Kunci bitwise 0x76 sesuai lembar soal
+    }
+}
+```
+
+- Fungsi Penulisan Aman / Enkripsi (INSERT INTO):
+```c
+void save_to_encrypted_db(const char *table_name, const char *data) {
+    char filepath[512];
+    sprintf(filepath, "/app/encrypted_storage/%s.csv.enc", table_name);
+    size_t len = strlen(data);
+    char *encrypted_data = malloc(len);
+    
+    xor_cipher(data, encrypted_data, len); // Enkripsi sebelum masuk storage
+
+    FILE *f = fopen(filepath, "ab"); // Append Binary
+    if (f != NULL) {
+        fwrite(encrypted_data, 1, len, f);
+        char nl = '\n' ^ 0x76; // Newline ikut di-XOR sebagai delimiter
+        fputc(nl, f);
+        fclose(f);
+    }
+    free(encrypted_data);
+}
+```
+
+- Fungsi Pembacaan Transparan / Dekripsi (SELECT * FROM):
+```c
+void read_and_decrypt_db(const char *table_name, char *output_buffer) {
+    char filepath[512];
+    sprintf(filepath, "/app/encrypted_storage/%s.csv.enc", table_name);
+    FILE *f = fopen(filepath, "rb"); // Read Binary
+    if (f == NULL) { return; }
+
+    fseek(f, 0, SEEK_END); long size = ftell(f); fseek(f, 0, SEEK_SET);
+    if (size > 0) {
+        char *encrypted_data = malloc(size);
+        char *decrypted_data = malloc(size + 1);
+        fread(encrypted_data, 1, size, f);
+        
+        xor_cipher(encrypted_data, decrypted_data, size); // Mengembalikan ke teks asli
+        decrypted_data[size] = '\0';
+        strcpy(output_buffer, decrypted_data);
+        
+        free(encrypted_data); free(decrypted_data);
+    }
+    fclose(f);
+}
+```
+
+Untuk menjalankan program
+ 1. Bikin folder jembatan sinkronisasi
+mkdir -p fuse_mount
+
+    Fungsi : Membuat folder fisik fuse_mount di komputer host (Mac). Folder ini       disinkronisasikan secara langsung dengan folder /app/db di dalam Ubuntu container. File Dockerfile, server.c, dan client.c wajib diletakkan langsung di dalam folder induk soal_2 ini
+
+2. Kompilasi citra sistem Docker container
+docker build -t soal-2-modul-4-sisop .
+
+    Fungsi :Memerintahkan Docker Engine mengunduh base image Ubuntu, menginstal compiler gcc, menyalin file C, serta membundelnya menjadi sebuah image biner bernama soal_2.
+
+3. Jalankan container dengan bind-mount volume aktif
+docker run -d --name db_app -p 9000:9000 -v "$(pwd)/fuse_mount:/app/db" soal-2-modul-4-sisop
+
+    Fungsi :Menjalankan kontainer db_app di latar belakang (detached mode), mem-forward jalur soket komunikasi ke port 9000, serta melakukan pengikatan volume agar folder kontainer tersambung langsung ke folder host Mac. Folder /app/encrypted_storage otomatis terbuat secara internal di dalam kontainer pada tahap ini sebagai brankas terenkripsi yang aman.
+
+4. Masuk ke prompt konsol klien interaktif
+docker exec -it db_app ./db_client
+
+    Fungsi :Mengeksekusi biner ./db_client secara interaktif di dalam kontainer, memicu munculnya prompt interaktif pangkalan data berupa tulisan db > .
+
+5. membersihkan alokasi memori dan kontainer.
+   docker stop db_app && docker rm db_app
+
+   Fungsi :Menghentikan background proses engine database dan menghapus kontainer db_app agar tidak membebani penggunaan resource laptop.
+
+Lalu  menjalankan urutan kueri oengujian yang ada di dalam db> 
+```
+db > HELP
+--- COMMAND LIST ---
+1. CREATE DATABASE <name>
+2. CREATE TABLE <name>
+3. INSERT INTO <tbl> <data>
+4. SELECT * FROM <tbl>
+5. EXIT
+
+db > CREATE DATABASE pokemon_db
+DATABASE pokemon_db CREATED SUCCESSFULLY
+
+db > CREATE TABLE pokedex
+TABLE pokedex CREATED SUCCESSFULLY
+
+db > INSERT INTO pokedex 001,Bulbasaur,Grass,90
+SUCCESS: Data inserted into pokedex and encrypted securely.
+
+db > INSERT INTO pokedex 004,Charmander,Fire,95
+SUCCESS: Data inserted into pokedex and encrypted securely.
+
+db > SELECT * FROM pokedex
+001,Bulbasaur,Grass,90
+004,Charmander,Fire,95
+
+db > exit
+Disconnecting...
+```
+
+<img width="577" height="127" alt="Tangkapan Layar 2026-05-17 pukul 17 22 15" src="https://github.com/user-attachments/assets/8aa575c8-cad8-41c4-ba22-676c23200a29" />
+
+<img width="572" height="238" alt="Tangkapan Layar 2026-05-17 pukul 17 22 36" src="https://github.com/user-attachments/assets/a2872a74-221d-4c85-a120-2cd7e37ddc7b" />
+
+
